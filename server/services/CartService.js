@@ -3,6 +3,8 @@ const CartModel = require('../models/cart');
 const OrderModel = require('../models/order');
 const CartItemModel = require('../models/cartItem');
 
+const { STRIPE_SECRET_KEY } = require('../config');
+
 module.exports = class CartService {
 
   async create(data) {
@@ -79,8 +81,8 @@ module.exports = class CartService {
 
   async checkout(cartId, userId, paymentInfo) {
     try {
-
-      const stripe = require('stripe')('sk_test_FOY6txFJqPQvJJQxJ8jpeLYQ');
+      // Init Stripe with secret key
+      const stripe = require('stripe')(STRIPE_SECRET_KEY);
 
       // Load cart items
       const cartItems = await CartItemModel.find(cartId);
@@ -94,14 +96,14 @@ module.exports = class CartService {
       const Order = new OrderModel({ total, userId });
       Order.addItems(cartItems);
       await Order.create();
-
-      // Make charge to payment method (not required in this project)
-      const charge = await stripe.charges.create({
+      
+      // Make charge to payment method
+      await stripe.charges.create({
         amount: total,
         currency: 'usd',
         source: paymentInfo.id,
         description: 'Codecademy Charge'
-      });
+      })
 
       // On successful charge to payment method, update order status to COMPLETE
       const order = Order.update({ status: 'COMPLETE' });
